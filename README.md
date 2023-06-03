@@ -21,6 +21,8 @@ go build
 ./database-server
 ```
 
+After that go to http://localhost:8080/ at the browser and the landing page will show.
+
 By default, the server will start on port 8080 and in production. You can specify a different port using the -door flag:
 
 ```

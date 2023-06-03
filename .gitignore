@@ -1,2 +1,3 @@
 /cmd/database-server/.env
-database-server
+/cmd/database-server/database-server
+
