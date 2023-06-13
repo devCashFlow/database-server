@@ -1,21 +1,40 @@
-package mysql
+package postgresql
 
 import (
 	"database/sql"
 	"log"
 
-	"github.com/devcashflow/database-server/types"
+	_ "github.com/lib/pq"
 
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/devcashflow/database-server/types"
 )
 
-type MySQLDB struct {
+type PostgreSQLDB struct {
 	SQLDB *sql.DB
+}
+
+func (db *PostgreSQLDB) Version() (types.Version, error) {
+	rows, err := db.SQLDB.Query("select version()")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rows.Close()
+
+	var version string
+	for rows.Next() {
+		err := rows.Scan(&version)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	return types.Version{
+		Version: version,
+	}, nil
 }
 
 // InsertEmail inserts an email at the database. It assumes sanity checks are
 // done before getting here, so it only inserts.
-func (db *MySQLDB) InsertEmail(email *types.Email) error {
+func (db *PostgreSQLDB) InsertEmail(email *types.Email) error {
 	insForm, err := db.SQLDB.Prepare("INSERT INTO emails (email, name) VALUES (?,?)")
 	if err != nil {
 		return err
@@ -30,7 +49,7 @@ func (db *MySQLDB) InsertEmail(email *types.Email) error {
 	return nil
 }
 
-func (db *MySQLDB) ListEmails() ([]types.Email, error) {
+func (db *PostgreSQLDB) ListEmails() ([]types.Email, error) {
 	stmt, err := db.SQLDB.Prepare("SELECT email FROM emails")
 	if err != nil {
 		return nil, err
@@ -57,23 +76,6 @@ func (db *MySQLDB) ListEmails() ([]types.Email, error) {
 	return emails, nil
 }
 
-func (db *MySQLDB) Version() (types.Version, error) {
-	rows, err := db.SQLDB.Query("select version()")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer rows.Close()
-
-	var version types.Version
-	for rows.Next() {
-		err := rows.Scan(&version)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-	return version, nil
-}
-
-func (db *MySQLDB) Ping() error {
+func (db *PostgreSQLDB) Ping() error {
 	return db.SQLDB.Ping()
 }

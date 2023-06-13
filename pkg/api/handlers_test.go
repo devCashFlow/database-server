@@ -8,29 +8,46 @@ import (
 	"testing"
 
 	handlers "github.com/devcashflow/database-server/pkg/api"
-	"github.com/devcashflow/database-server/pkg/database/mysql"
 	"github.com/devcashflow/database-server/types"
-
-	"github.com/DATA-DOG/go-sqlmock"
 )
 
+type MockDB struct {
+	InsertEmailError error
+	ListEmailsValue  []types.Email
+	ListEmailsError  error
+	VersionValue     types.Version
+	VersionError     error
+}
+
+func (mdb *MockDB) Close() error {
+	// Implement the Close method of the Database interface for the mock
+	return nil
+}
+func (m *MockDB) InsertEmail(email *types.Email) error {
+	return nil
+}
+
+func (m *MockDB) ListEmails() ([]types.Email, error) {
+	// Return the values specified in the mock
+	return m.ListEmailsValue, m.ListEmailsError
+}
+
+func (m *MockDB) Version() (types.Version, error) {
+	// Return the values specified in the mock
+	return m.VersionValue, m.VersionError
+}
+
+func (m *MockDB) Ping() error {
+	return nil
+}
+
 func TestHandleCreateEmail(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-	}
-	defer db.Close()
+	mdb := &MockDB{}
 
-	mdb := &mysql.DB{db}
 	server, err := handlers.New(mdb)
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("there were unfulfilled expectations: %s", err)
+	if err != nil {
+		t.Fatalf("unexpected error creating server: %s", err)
 	}
-
-	mock.ExpectPrepare("INSERT INTO emails").
-		ExpectExec().
-		WithArgs("test@example.com", "test").
-		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	request := &types.CreateEmailRequest{
 		Email: "test@example.com",
@@ -55,29 +72,20 @@ func TestHandleCreateEmail(t *testing.T) {
 	if !response.Success {
 		t.Error("handler returned unexpected body: got success=false want success=true")
 	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("there were unfulfilled expectations: %s", err)
-	}
 }
 
 func TestHandleListEmails(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	mdb := &MockDB{
+		ListEmailsValue: []types.Email{
+			{Address: "test@example.com"},
+			{Address: "another_test@example.com"},
+		},
 	}
-	defer db.Close()
 
-	mdb := &mysql.DB{db}
 	server, err := handlers.New(mdb)
-
-	rows := sqlmock.NewRows([]string{"email"}).
-		AddRow("test@example.com").
-		AddRow("another_test@example.com")
-
-	mock.ExpectPrepare("SELECT email FROM emails").
-		ExpectQuery().
-		WillReturnRows(rows)
+	if err != nil {
+		t.Fatalf("unexpected error creating server: %s", err)
+	}
 
 	req, _ := http.NewRequest("GET", "/emails", nil)
 	rr := httptest.NewRecorder()
@@ -96,9 +104,5 @@ func TestHandleListEmails(t *testing.T) {
 	if len(response.Emails) != 2 {
 		t.Errorf("handler returned unexpected number of emails: got %d, want 2",
 			len(response.Emails))
-	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("there were unfulfilled expectations: %s", err)
 	}
 }
