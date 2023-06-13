@@ -34,3 +34,7 @@ type Contact struct {
 	Email   string    `json:"email"`
 	Created time.Time `json:"created,omitempty"`
 }
+
+type Version struct {
+	Version string `json:"version"`
+}

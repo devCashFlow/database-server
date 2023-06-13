@@ -16,14 +16,14 @@ func TestInsertEmail(t *testing.T) {
 	}
 	defer db.Close()
 
-	mdb := &mysql.DB{db}
+	mdb := &mysql.MySQLDB{db}
 
 	mock.ExpectPrepare("INSERT INTO emails").
 		ExpectExec().
 		WithArgs("test@example.com", "test").
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	err = mdb.InsertEmail(types.Email{Address: "test@example.com", Name: "test"})
+	err = mdb.InsertEmail(&types.Email{Address: "test@example.com", Name: "test"})
 	if err != nil {
 		t.Errorf("error was not expected while inserting email: %s", err)
 	}
@@ -41,7 +41,7 @@ func TestListEmails(t *testing.T) {
 	}
 	defer db.Close()
 
-	mdb := &mysql.DB{db}
+	mdb := &mysql.MySQLDB{db}
 
 	rows := sqlmock.NewRows([]string{"email"}).
 		AddRow("test@example.com").

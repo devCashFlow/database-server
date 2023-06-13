@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/devcashflow/database-server/pkg/database/mysql"
+	"github.com/devcashflow/database-server/pkg/database"
 	"github.com/devcashflow/database-server/types"
 
 	"github.com/go-chi/render"
@@ -16,7 +16,7 @@ import (
 var routes = flag.Bool("routes", false, "Generate router documentation")
 
 type Server struct {
-	db *mysql.DB
+	db database.Database
 }
 
 //--
@@ -39,7 +39,7 @@ type ErrResponse struct {
 
 // var ErrNotFound = &ErrResponse{HTTPStatusCode: 404, StatusText: "Resource not found."}
 
-func New(db *mysql.DB) (*Server, error) {
+func New(db database.Database) (*Server, error) {
 	if db == nil {
 		return nil, errors.New("No db informed")
 	}
@@ -92,7 +92,7 @@ func (s *Server) HandleCreateEmail(w http.ResponseWriter, r *http.Request) {
 		render.Render(w, r, ErrInvalidRequest(errors.New("Email Address Missing")))
 		return
 	}
-	err = s.db.InsertEmail(types.Email{
+	err = s.db.InsertEmail(&types.Email{
 		Address: request.Email,
 		Name:    request.Name,
 	})
@@ -115,8 +115,20 @@ func (s *Server) HandleListEmails(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	fmt.Printf("emails: %+v\n\n", emails)
 	json.NewEncoder(w).Encode(&types.ListEmailsResponse{
 		Emails: emails,
+	})
+}
+
+func (s *Server) HandleVersion(w http.ResponseWriter, r *http.Request) {
+	version, err := s.db.Version()
+	if err != nil {
+		render.Render(w, r, ErrInternalServer(err))
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(&types.Version{
+		Version: version.Version,
 	})
 }

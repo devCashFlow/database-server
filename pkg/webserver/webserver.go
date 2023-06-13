@@ -13,7 +13,7 @@ import (
 	"path/filepath"
 
 	handlers "github.com/devcashflow/database-server/pkg/api"
-	"github.com/devcashflow/database-server/pkg/database/mysql"
+	"github.com/devcashflow/database-server/pkg/database"
 	middlewares "github.com/devcashflow/database-server/pkg/middlewares"
 
 	"github.com/go-chi/jwtauth/v5"
@@ -30,9 +30,10 @@ const (
 )
 
 var (
-	dev       = flag.Bool("dev", false, "development mode")
-	door      = flag.Int("door", 8080, "the door the server is going to run. Default 8080")
-	tokenAuth *jwtauth.JWTAuth
+	dev          = flag.Bool("dev", false, "development mode")
+	door         = flag.Int("door", 3000, "the door the server is going to run. (Default 3000)")
+	databaseType = flag.String("databaseType", "postgres", "the door the server is going to run. (Default PostgreSQL)")
+	tokenAuth    *jwtauth.JWTAuth
 	//go:embed www/*
 	www embed.FS
 )
@@ -70,25 +71,30 @@ func Start() {
 	}
 
 	// get env variables
-	mysqlUser := os.Getenv("MYSQL_USER")
-	mysqlPass := os.Getenv("MYSQL_PASS")
-	mysqlHost := os.Getenv("MYSQL_HOST")
-	mysqlDoor := os.Getenv("MYSQL_DOOR")
-	mysqlDBName := os.Getenv("MYSQL_DATABASE_NAME")
-
-	db, err := mysql.Connect(mysqlUser, mysqlPass, mysqlHost, mysqlDoor, mysqlDBName)
+	config := database.Config{
+		User:    os.Getenv("MYSQL_USER"),
+		Pass:    os.Getenv("MYSQL_PASS"),
+		Host:    os.Getenv("MYSQL_HOST"),
+		Port:    os.Getenv("MYSQL_DOOR"),
+		Name:    os.Getenv("MYSQL_DATABASE_NAME"),
+		SSLMODE: os.Getenv("SSLMODE"),
+		Type:    *databaseType,
+	}
+	db, err := database.Connect(config)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to Connect to database server: %v", err)
 	}
 
-	// Initialize server with db instance
+	// Initialize handlers with db instance
 	server, err := handlers.New(db)
 	if err != nil {
-		log.Fatalf("Failed to create server: %v", err)
+		log.Fatalf("Failed to create handlers: %v", err)
 	}
 
 	// Define routes
 	router := chi.NewRouter()
+	// Add Cors
+	// XXX make it less public
 	router.Use(cors.New(cors.Options{
 		AllowedOrigins: []string{"*"},
 		AllowedMethods: []string{
@@ -107,6 +113,7 @@ func Start() {
 
 	router.Post("/create-email", server.HandleCreateEmail)
 	router.Get("/list-emails", server.HandleListEmails)
+	router.Get("/version", server.HandleVersion)
 
 	router.Handle("/*", fileServer)
 
