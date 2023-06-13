@@ -32,10 +32,10 @@ func (db *PostgreSQLDB) Version() (types.Version, error) {
 	}, nil
 }
 
-// InsertEmail inserts an email at the database. It assumes sanity checks are
+// InsertEmail inserts an email into the database. It assumes sanity checks are
 // done before getting here, so it only inserts.
 func (db *PostgreSQLDB) InsertEmail(email *types.Email) error {
-	insForm, err := db.SQLDB.Prepare("INSERT INTO emails (email, name) VALUES (?,?)")
+	insForm, err := db.SQLDB.Prepare("INSERT INTO emails (email, name) VALUES ($1, $2)")
 	if err != nil {
 		return err
 	}
